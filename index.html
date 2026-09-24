@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portfólio — O Livro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Jacquarda+Bastarda+9&family=Pixelify+Sans:wght@400;500;600;700&family=Silkscreen:wght@400;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="book.css">
+</head>
+
+<body>
+
+  <div id="scene3d">
+    <div class="scene-hint" id="sceneHint">arraste para girar · clique no livro para abrir</div>
+    <button class="close-book" id="closeBook">✕ Fechar livro</button>
+    <button class="trofeus-btn" id="abrirTrofeus" type="button" title="Estante de troféus" aria-label="Estante de troféus">🏆</button>
+    <div class="page-corner prev" id="navPrev">
+      <div class="fold"></div>
+    </div>
+    <div class="page-corner next" id="navNext">
+      <div class="fold"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- decodifica GIF quadro a quadro à mão (via gifuct-js) em vez de depender do navegador
+       "tocar" a animação sozinho — isso é o que dá controle de verdade (tocar 1x, congelar
+       no fim), sem os problemas de timing/visibilidade de deixar o <img> nativo animar. -->
+  <script type="module">
+    import { parseGIF, decompressFrames } from 'https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm';
+    window.GifuctJS = { parseGIF, decompressFrames };
+  </script>
+  <script src="content.js"></script>
+  <script src="pixel-art.js"></script>
+  <!-- troféus e joguinhos: trofeus.js é a base compartilhada (registro/vitrine), e cada jogo
+       mora no próprio arquivo, com só a regra dele. Carregam antes de book.js, que é quem
+       detecta as peças encostadas e pergunta aos jogos se aquilo vale prêmio. -->
+  <script src="trofeu-icones.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="vitrine-3d.js"></script>
+  <script src="flechada-3d.js"></script>
+  <script src="muralha-3d.js"></script>
+  <script src="barco-3d.js"></script>
+  <script src="pergaminho-3d.js"></script>
+  <script src="cenas-trofeu.js"></script>
+  <script src="trofeus.js"></script>
+  <script src="jogo-romanos.js"></script>
+  <script src="book.js"></script>
+</body>
+
+</html>

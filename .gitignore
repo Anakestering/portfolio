@@ -1,0 +1,7 @@
+# configuração local de desenvolvimento (o servidor de teste), não faz parte do site
+.claude/
+
+# lixo que o sistema operacional espalha pelas pastas
+Thumbs.db
+desktop.ini
+.DS_Store

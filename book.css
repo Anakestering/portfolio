@@ -1,0 +1,688 @@
+:root {
+  --parchment: #e8c98a;
+  --parchment-2: #d4a866;
+  --parchment-shadow: #a97f45;
+  --ink: #2b1a12;
+  --ink-soft: #5c4020;
+  --leather: #6b2e1a;
+  --leather-2: #8a3f22;
+  --leather-dark: #2e120a;
+  --gold: #e8b23d;
+  --gold-bright: #ffd76b;
+  --magic: #5b3aa8;
+  --magic-bright: #a880ff;
+  --void: #0a0605;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'EB Garamond', serif;
+  overflow: hidden;
+  position: relative;
+  background: #1b0f07;
+}
+
+/* mesa: madeira envelhecida com veio orgânico e rachaduras, levemente embaçada (fora de foco,
+   atrás do livro) — a imagem em si é gerada uma vez via canvas (ver makeWoodTableTexture em
+   book.js) porque gradientes CSS retos não davam conta do veio ondulado nem das rachaduras. */
+body::before {
+  content: "";
+  position: absolute;
+  inset: -2%;
+  background-image: var(--table-bg-img);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(3px);
+  transform: scale(1.03);
+  z-index: 0;
+}
+
+/* vinheta suave — escurece só os cantos, mantendo a madeira visível */
+body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 78% at 50% 48%, transparent 55%, rgba(0, 0, 0, 0.62) 100%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+#scene3d {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  cursor: grab;
+}
+
+#scene3d.dragging {
+  cursor: grabbing;
+}
+
+#scene3d canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.scene-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 6%;
+  transform: translateX(-50%);
+  font-family: 'Pixelify Sans', monospace;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+  opacity: .8;
+  text-align: center;
+  pointer-events: none;
+  text-shadow: 2px 2px 0 var(--void);
+  transition: opacity .4s ease;
+}
+
+#scene3d.reading .scene-hint {
+  opacity: 0;
+}
+
+.page-corner {
+  position: absolute;
+  bottom: 4%;
+  width: 90px;
+  height: 90px;
+  z-index: 50;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease;
+}
+
+#scene3d.reading .page-corner {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.page-corner.prev {
+  left: 3%;
+}
+
+.page-corner.next {
+  right: 3%;
+}
+
+.page-corner.disabled {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+/* .fold fica invisível — vira só a área de hover/clique; a dobra visível agora é a da folha 3D real */
+.page-corner .fold {
+  position: absolute;
+  inset: 0;
+}
+
+/* zona de clique de um item do sumário — invisível de propósito (o texto/ícone já desenhado
+   na textura é o visual; isso aqui só existe pra capturar o clique na posição certa) */
+.toc-zone {
+  position: absolute;
+  width: 210px;
+  height: 28px;
+  z-index: 50;
+  cursor: pointer;
+  pointer-events: none;
+}
+
+.toc-zone.visible {
+  pointer-events: auto;
+}
+
+/* zona de clique sobre a ilustração/gif/slideshow de uma página — dispara o "pulinho" (ver
+   bounceImage em book.js). Sem seta, só um cursor de mão pra sugerir que é clicável. */
+.image-zone {
+  position: absolute;
+  z-index: 50;
+  cursor: pointer;
+  pointer-events: none;
+}
+
+.image-zone.visible {
+  pointer-events: auto;
+}
+
+/* aviso de troféu — entra deslizando pelo canto, no espírito dos avisos de conquista de jogo */
+.trofeu-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  padding-right: 36px; /* espaço pro ✕ não encostar no texto */
+  z-index: 200;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: 320px;
+  padding: 12px 16px;
+  background: var(--void);
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 0 2px var(--void), 0 8px 24px rgba(0, 0, 0, .55);
+  color: var(--parchment);
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none;
+  cursor: pointer;
+  text-align: left;
+  transition: opacity .3s ease, transform .3s ease;
+}
+
+.trofeu-toast.aparece {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto; /* só clicável enquanto está à vista */
+}
+
+.trofeu-toast:hover,
+.trofeu-toast:focus-visible {
+  border-color: var(--gold-bright);
+  outline: none;
+}
+
+.trofeu-fechar {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--void);
+  border: 2px solid var(--gold);
+  color: var(--gold-bright);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.trofeu-fechar:hover {
+  background: var(--leather-dark);
+}
+
+.trofeu-dica {
+  margin-top: 8px;
+  font-family: 'Silkscreen', monospace;
+  font-size: 9px;
+  letter-spacing: .06em;
+  color: var(--gold);
+  opacity: .7;
+}
+
+.trofeu-icone {
+  flex-shrink: 0;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.trofeu-icone canvas {
+  image-rendering: pixelated;
+  display: block;
+}
+
+.trofeu-titulo {
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: .06em;
+  color: var(--gold-bright);
+  margin-bottom: 6px;
+}
+
+.trofeu-texto {
+  font-family: 'Pixelify Sans', monospace;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--parchment);
+  opacity: .9;
+}
+
+.trofeu-repeticao {
+  font-family: 'Pixelify Sans', monospace;
+  font-size: 12px;
+  color: var(--gold);
+  opacity: .6;
+  margin-top: 4px;
+}
+
+.trofeu-repeticao[hidden] {
+  display: none;
+}
+
+/* comemoração especial: uma cena que toma a tela por alguns segundos (ver cenas-trofeu.js).
+   Fica atrás do aviso (z-index 200) e à frente do livro, sem roubar clique nenhum. */
+.trofeu-cena {
+  position: fixed;
+  z-index: 150;
+  pointer-events: none;
+}
+
+.trofeu-cena canvas {
+  image-rendering: pixelated;
+  display: block;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .5));
+}
+
+/* ---- as cenas 3D: a muralha (III), o pergaminho (VI), o barco (XV) e a flechada (XVI) ----
+   A cena toda é desenhada num canvas pelo three.js (ver muralha-3d.js, flechada-3d.js, barco-3d.js
+   e pergaminho-3d.js). Aqui só a caixa que cobre a tela e o tempo de vida dela: é o fim dessa
+   animação que avisa o trofeus.js pra tirar a cena (a duração de verdade é calculada a partir da
+   própria cena, em cenas-trofeu.js). */
+.trofeu-cena.muralha,
+.trofeu-cena.flechada,
+.trofeu-cena.barco,
+.trofeu-cena.pergaminho {
+  inset: 0;
+  animation: cena-vida 4s linear forwards;
+}
+
+@keyframes cena-vida {
+  from, to { opacity: 1; }
+}
+
+.muralha-3d,
+.flechada-3d,
+.barco-3d,
+.pergaminho-3d {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* botão da estante — logo abaixo do "fechar livro", mesmo visual de caixa de RPG */
+.trofeus-btn {
+  position: absolute;
+  top: 66px;
+  right: 3%;
+  z-index: 60;
+  width: 40px;
+  height: 36px;
+  font-size: 18px;
+  line-height: 1;
+  background: var(--void);
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 0 2px var(--void), inset 0 0 0 2px rgba(232, 178, 61, 0.25);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease, transform .1s ease;
+}
+
+#scene3d.reading .trofeus-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.trofeus-btn:hover {
+  background: var(--leather-dark);
+  transform: scale(1.05);
+}
+
+/* estante de troféus */
+.trofeus-painel {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 6, 5, 0.72);
+}
+
+.trofeus-painel[hidden] {
+  display: none;
+}
+
+.trofeus-caixa {
+  width: min(600px, 92vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--void);
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 0 2px var(--void), 0 12px 40px rgba(0, 0, 0, .6);
+  color: var(--parchment);
+}
+
+.trofeus-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 4px;
+}
+
+.trofeus-cabecalho {
+  font-family: 'Silkscreen', monospace;
+  font-size: 15px;
+  letter-spacing: .08em;
+  color: var(--gold-bright);
+}
+
+.trofeus-fechar {
+  background: none;
+  border: none;
+  color: var(--gold);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.trofeus-abas {
+  display: flex;
+  gap: 4px;
+  padding: 10px 16px 0;
+}
+
+/* o display:flex acima venceria o hidden sozinho; com uma aba só a barra some (ver trofeus.js) */
+.trofeus-abas[hidden] {
+  display: none;
+}
+
+.trofeus-aba {
+  position: relative;
+  padding: 7px 14px;
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+  letter-spacing: .06em;
+  color: rgba(232, 201, 138, .6);
+  background: none;
+  border: 2px solid rgba(232, 178, 61, .25);
+  border-bottom: none;
+  cursor: pointer;
+}
+
+.trofeus-aba:hover {
+  color: var(--parchment);
+}
+
+.trofeus-aba.ativa {
+  color: var(--gold-bright);
+  border-color: var(--gold);
+  background: rgba(232, 178, 61, .08);
+}
+
+/* bolinha piscando na aba que tem troféu novo ainda não visto */
+.trofeus-aba.tem-novo::after,
+.trofeus-btn.tem-novo::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 9px;
+  height: 9px;
+  background: var(--gold-bright);
+  border: 2px solid var(--void);
+  animation: trofeu-pisca 1s steps(2, jump-none) 6;
+}
+
+/* pisca algumas vezes e PARA (aceso): um brilho eterno na tela vira ruído.
+   No botão do livro, que fica em cena o tempo todo, a bolinha continua piscando até abrir. */
+.trofeus-btn.tem-novo::after {
+  animation-iteration-count: infinite;
+}
+
+@keyframes trofeu-pisca {
+  0% { opacity: 1; }
+  50% { opacity: .15; }
+  100% { opacity: 1; }
+}
+
+.trofeus-contagem {
+  padding: 8px 16px 0;
+  font-family: 'Pixelify Sans', monospace;
+  font-size: 14px;
+  color: var(--gold);
+  border-top: 2px solid var(--gold);
+}
+
+.trofeus-contagem:empty {
+  padding-top: 0;
+}
+
+.trofeus-lista {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 16px 12px;
+}
+
+.trofeus-vazio {
+  margin: 24px 0;
+  text-align: center;
+  font-family: 'Pixelify Sans', monospace;
+  font-size: 15px;
+  color: rgba(232, 201, 138, .5);
+}
+
+.trofeus-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+}
+
+.trofeu-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  background: rgba(232, 178, 61, .05);
+  border: 1px solid rgba(232, 178, 61, .2);
+  cursor: pointer;
+  color: inherit;
+}
+
+.trofeu-item:hover,
+.trofeu-item:focus-visible {
+  border-color: var(--gold);
+  outline: none;
+}
+
+.trofeu-item.selecionado {
+  border: 2px solid var(--gold-bright);
+  background: rgba(232, 178, 61, .14);
+  padding: 9px 5px;
+}
+
+/* selo piscante do troféu recém-conquistado — some quando a pessoa clica nele */
+.trofeu-novo {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  padding: 1px 5px;
+  font-family: 'Silkscreen', monospace;
+  font-size: 10px;
+  letter-spacing: .05em;
+  color: var(--void);
+  background: var(--gold-bright);
+  animation: trofeu-pisca 1s steps(2, jump-none) 6;
+}
+
+/* o ícone é um canvas de pixel art (ver trofeu-icones.js); quando bloqueado ele já vem pintado
+   todo de escuro, então aqui não há filtro nenhum */
+.trofeu-item-icone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.trofeu-item-icone canvas {
+  image-rendering: pixelated;
+}
+
+.trofeu-item-nome {
+  font-family: 'Pixelify Sans', monospace;
+  font-size: 13px;
+  line-height: 1.25;
+  text-align: center;
+  color: rgba(232, 201, 138, .45);
+}
+
+.trofeu-item.conquistado .trofeu-item-nome {
+  color: var(--parchment);
+}
+
+.trofeus-detalhe {
+  /* altura FIXA de propósito: se ela variasse com o tamanho do texto, a lista de cima mudaria de
+     tamanho a cada troféu espiado e a rolagem dela saltaria sozinha */
+  flex: 0 0 30vh;
+  overflow-y: auto;
+  padding: 12px 16px 14px;
+  border-top: 2px solid rgba(232, 178, 61, .35);
+}
+
+.trofeus-detalhe-titulo {
+  font-family: 'Silkscreen', monospace;
+  font-size: 15px;
+  letter-spacing: .05em;
+  color: var(--gold-bright);
+  margin-bottom: 8px;
+}
+
+.trofeus-detalhe-titulo:empty {
+  display: none;
+}
+
+.trofeus-detalhe-texto {
+  font-family: 'Pixelify Sans', monospace;
+  font-size: 17px;
+  line-height: 1.5;
+  white-space: pre-line;
+  opacity: .92;
+}
+
+/* "clique no troféu para ver ... em 3D", embaixo da história de quem tem vitrine */
+.trofeus-detalhe-dica {
+  margin-top: 10px;
+  font-family: 'Silkscreen', monospace;
+  font-size: 11px;
+  letter-spacing: .05em;
+  color: var(--gold);
+}
+
+.trofeus-detalhe-dica[hidden] {
+  display: none;
+}
+
+/* vitrine: o objeto do troféu em 3D, por cima da estante, pra girar arrastando (ver trofeus.js) */
+.trofeu-vitrine {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 6, 5, 0.6);
+}
+
+.trofeu-vitrine[hidden] {
+  display: none;
+}
+
+.trofeu-vitrine-caixa {
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(ellipse 70% 60% at 50% 45%, #3a2416 0%, var(--void) 100%);
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 0 2px var(--void), 0 12px 40px rgba(0, 0, 0, .6);
+  color: var(--parchment);
+}
+
+.trofeu-vitrine-palco {
+  width: min(520px, 88vw);
+  height: min(520px, 68vh);
+}
+
+.trofeu-vitrine-palco .elmo-3d,
+.trofeu-vitrine-palco .barco-vitrine-3d,
+.trofeu-vitrine-palco .pergaminho-vitrine-3d {
+  width: 100%;
+  height: 100%;
+}
+
+.trofeu-vitrine-dica {
+  padding: 6px 16px 12px;
+  text-align: center;
+  font-family: 'Silkscreen', monospace;
+  font-size: 11px;
+  letter-spacing: .08em;
+  color: var(--gold);
+  opacity: .7;
+}
+
+/* avisinho "Copiado: ..." que aparece perto do clique num contato */
+.copy-toast {
+  position: fixed;
+  transform: translate(-50%, -130%);
+  background: var(--void);
+  color: var(--gold-bright);
+  border: 2px solid var(--gold);
+  font-family: 'Silkscreen', monospace;
+  font-size: 10px;
+  letter-spacing: .05em;
+  padding: 6px 10px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .25s ease, transform .25s ease;
+  z-index: 100;
+  white-space: nowrap;
+}
+
+.copy-toast.show {
+  opacity: 1;
+  transform: translate(-50%, -150%);
+}
+
+
+.close-book {
+  position: absolute;
+  top: 22px;
+  right: 3%;
+  z-index: 60;
+  font-family: 'Silkscreen', monospace;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+  background: var(--void);
+  border: 2px solid var(--gold);
+  border-radius: 0;
+  box-shadow: 0 0 0 2px var(--void), inset 0 0 0 2px rgba(232, 178, 61, 0.25);
+  padding: 8px 16px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease, transform .1s ease;
+}
+
+#scene3d.reading .close-book {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.close-book:hover {
+  background: var(--leather-dark);
+  transform: scale(1.05);
+}
