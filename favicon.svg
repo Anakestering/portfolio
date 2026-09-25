@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- A capa do livro em miniatura: couro, moldura dourada e um "A" em pixel. Tudo em quadrados
+       de 1 unidade numa grade de 16, e o shape-rendering="crispEdges" impede o navegador de
+       suavizar as bordas — é isso que mantém a cara de pixel art em vez de virar um borrão. -->
+  <rect width="16" height="16" fill="#2e120a"/>
+  <rect x="1" y="1" width="14" height="14" fill="#e8b23d"/>
+  <rect x="2" y="2" width="12" height="12" fill="#6b2e1a"/>
+  <g fill="#ffd76b">
+    <rect x="6" y="4" width="4" height="2"/>
+    <rect x="4" y="5" width="2" height="7"/>
+    <rect x="10" y="5" width="2" height="7"/>
+    <rect x="6" y="8" width="4" height="2"/>
+  </g>
+</svg>
