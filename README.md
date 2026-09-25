@@ -21,6 +21,6 @@ arquivos não funciona — o navegador bloqueia módulos e texturas por `file://
 | `content.js` | o conteúdo do livro |
 | `pixel-art.js` | desenha as páginas no canvas |
 | `book.js` | o livro: folhear, arrastar as peças, celular |
-| `trofeus.js`, `jogo-romanos.js` | o jogo de numerais romanos e a estante |
+| `trofeus.js` | os troféus e a estante |
 | `*-3d.js` | as cenas de comemoração e as vitrines |
 | `vendor/` | three.js e as fontes, locais em vez de CDN |
