@@ -164,15 +164,21 @@ body::after {
 /* aviso de troféu — entra deslizando pelo canto, no espírito dos avisos de conquista de jogo */
 .trofeu-toast {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
-  padding-right: 36px; /* espaço pro ✕ não encostar no texto */
+  right: 16px;
+  bottom: 16px;
+  /* o "left" junto com o "right" e o max-width é o que segura o aviso dentro da tela num celular:
+     ele fica com 320px onde couber e encolhe sozinho onde não couber, sempre encostado à direita
+     (é o margin-left:auto que faz isso). */
+  left: 16px;
+  margin-left: auto;
   z-index: 200;
   display: flex;
   gap: 12px;
   align-items: center;
   max-width: 320px;
-  padding: 12px 16px;
+  /* a folga da direita é pro ✕ não encostar no texto — ela PRECISA vir dentro do atalho, senão
+     um "padding" declarado depois apaga o "padding-right" posto antes */
+  padding: 12px 36px 12px 16px;
   background: var(--void);
   border: 2px solid var(--gold);
   box-shadow: 0 0 0 2px var(--void), 0 8px 24px rgba(0, 0, 0, .55);
