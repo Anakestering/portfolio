@@ -214,7 +214,7 @@ function initBook() {
 
   bookGroup.position.set(0, BASE_Y, IDLE_Z);
   bookGroup.rotation.set(0.3, -1, 0);
-  bookGroup.scale.set(IDLE_SCALE, IDLE_SCALE, IDLE_SCALE);
+  bookGroup.scale.setScalar(escalaParada());
 
   // ---- estado de leitura ----
   let current = 0;                 // nº de folhas já viradas
@@ -261,6 +261,15 @@ function initBook() {
   let cornerHoverNext = 0, cornerHoverPrev = 0;
   let mouseX = -1, mouseY = -1;
   window.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+  // o dedo não dispara mousemove: sem isto, no celular mouseX ficava parado em -1 e tudo que
+  // depende de onde o cursor está (virar a página segurando uma peça, por exemplo) não acontecia.
+  // touchmove entra junto porque o navegador pode CANCELAR os eventos de ponteiro no meio de um
+  // gesto (quando decide que aquilo é rolagem), e aí o pointermove simplesmente para de vir.
+  window.addEventListener('pointermove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+  window.addEventListener('touchmove', (e) => {
+    const dedo = e.touches[0];
+    if (dedo) { mouseX = dedo.clientX; mouseY = dedo.clientY; }
+  }, { passive: true });
   function pointInEl(el, x, y) {
     if (el.classList.contains('disabled')) return false;
     const r = el.getBoundingClientRect();
@@ -800,6 +809,8 @@ function initBook() {
     const foldSnapshot = leafPivots[flipping].userData.mesh.geometry.attributes.position.array.slice();
     current++;
     updateNavState();
+    // em tela estreita a dupla não cabe: virando pra frente, quem entra é a página da esquerda
+    if (umaPaginaPorVez) { ladoDaPagina = 'esquerda'; enquadrarLeitura(600); }
     flipPage(leafPivots[flipping], -Math.PI * 0.92, fromDepths, computeDepths(current), 1150, () => { animating = false; updateCornerZones(); updateTocZones(); updateContactZones(); updateSectionZones(); updateMediaPlayback();}, foldSnapshot);
   }
   function goPrev() {
@@ -813,6 +824,8 @@ function initBook() {
     const foldSnapshot = leafPivots[current - 1].userData.mesh.geometry.attributes.position.array.slice();
     current--;
     updateNavState();
+    // voltando, quem entra é a página da direita da dupla anterior
+    if (umaPaginaPorVez && current > 0) { ladoDaPagina = 'direita'; enquadrarLeitura(600); }
     flipPage(leafPivots[current], 0, fromDepths, computeDepths(current), 1150, () => {
       animating = false;
       if (current === 0) closeToInspect();
@@ -862,8 +875,10 @@ function initBook() {
     }
   }
 
-  navNextEl.addEventListener('click', goNext);
-  navPrevEl.addEventListener('click', goPrev);
+  // as setas passam a função por dentro de uma seta anônima de propósito: ligar goNext direto
+  // entregaria o objeto do CLIQUE como primeiro argumento, e ele viraria o "ladoDestino"
+  navNextEl.addEventListener('click', () => goNext());
+  navPrevEl.addEventListener('click', () => goPrev());
   document.addEventListener('keydown', (e) => {
     if (!reading || Trofeus.estanteAberta()) return;
     if (e.key === 'ArrowRight') goNext();
@@ -1109,21 +1124,39 @@ function initBook() {
   const ICON_TURN_MS = 600;
   function updateIconCornerTurn(dt) {
     if (!iconDrag || animating || !reading) { iconCornerHold = 0; return; }
-    const overNext = pointInEl(navNextEl, mouseX, mouseY);
-    const overPrev = pointInEl(navPrevEl, mouseX, mouseY);
-    if (!overNext && !overPrev) { iconCornerHold = 0; return; }
+    // no computador as zonas são os cantos de virar; no celular são as mesmas faixas laterais que
+    // já viram a página num toque, senão não haveria como levar a peça pro resto do livro
+    const lado = umaPaginaPorVez ? faixaDoToque(mouseX)
+      : pointInEl(navNextEl, mouseX, mouseY) ? 1
+        : pointInEl(navPrevEl, mouseX, mouseY) ? -1 : 0;
+    if (!lado) { iconCornerHold = 0; return; }
     iconCornerHold += dt;
     if (iconCornerHold < ICON_TURN_MS) return;
     iconCornerHold = 0;
+    const praFrente = lado > 0;
     const { entry } = iconDrag;
-    if (overNext) goNext(); else goPrev();
-    // A peça passa na hora pra página de destino que NÃO está virando (indo pra frente é a nova
-    // página da direita; voltando, a da esquerda) — senão ela viajaria junto com a folha em
-    // movimento e sumiria. Como as coordenadas locais são as mesmas em qualquer folha, ela
-    // continua exatamente sob o cursor enquanto a página troca por baixo.
-    const pivot = leafPivots[overNext ? current : current - 1];
-    if (!pivot) return; // chegou na capa/contracapa: não há próxima folha pra receber a peça
-    const target = { mesh: pivot.userData.mesh, face: overNext ? 'front' : 'back' };
+    const paginaAntes = umaPaginaPorVez ? ladoDaPagina + current : current;
+
+    // No celular anda UMA página por vez, na mesma sequência do toque (esquerda → direita → vira a
+    // folha → esquerda...), e a peça acompanha a página que ficou à vista — virando a folha ou só
+    // deslizando pra outra metade da dupla, tanto faz. No computador as duas páginas aparecem
+    // juntas, então a folha vira sempre, e a peça vai pra página que NÃO está virando: se fosse
+    // pra que está, viajaria junto com ela e sumiria no meio do movimento.
+    let target;
+    if (umaPaginaPorVez) {
+      andarPagina(lado);
+      if (paginaAntes === ladoDaPagina + current) return; // não saiu do lugar (fim do livro)
+      target = paginaAVista();
+    } else {
+      const folhaAntes = current;
+      if (praFrente) goNext(); else goPrev();
+      if (current === folhaAntes) return; // chegou na capa/contracapa: nada virou
+      const pivot = leafPivots[praFrente ? current : current - 1];
+      target = pivot && { mesh: pivot.userData.mesh, face: praFrente ? 'front' : 'back' };
+    }
+    if (!target) return;
+    // as coordenadas locais são as mesmas em qualquer folha, então a peça continua exatamente sob
+    // o dedo enquanto a página troca por baixo dela
     moveIconToPage(entry, target);
     iconDrag.mesh = target.mesh;
   }
@@ -1149,6 +1182,157 @@ function initBook() {
     e.preventDefault();
   }, true);
 
+  // ---- leitura em tela estreita: uma página por vez ----
+  // Numa tela de celular em pé a página dupla não cabe. E o motivo não é falta de CSS: a câmera
+  // é em perspectiva com abertura vertical fixa, ou seja, ela enquadra pela ALTURA — numa tela
+  // alta e estreita sobra altura e falta largura, e o livro sai cortado dos dois lados.
+  //
+  // A saída é enquadrar UMA página de cada vez: o livro continua aberto e inteiro em 3D, só que o
+  // grupo se desloca pra pôr no meio da tela ora a página da esquerda, ora a da direita. Tocar nas
+  // laterais anda entre elas, virando a folha só quando chega no fim da dupla.
+  const LARGURA_DE_CELULAR = 760;
+  const FOLGA_DA_TELA = 0.92;   // sobra uma beiradinha em volta da página, não encosta na borda
+  const ZOOM_MAX = 3;
+  let umaPaginaPorVez = window.innerWidth < LARGURA_DE_CELULAR;
+  let ladoDaPagina = 'direita'; // qual metade da dupla está enquadrada
+  let zoomDeLeitura = 1;        // o que a pinça de dois dedos acrescenta por cima do enquadramento
+  let arrastoX = 0, arrastoY = 0; // o quanto dois dedos empurraram a vista, pra ler uma parte
+
+  // quanto de mundo cabe na tela, na distância em que o livro estiver
+  function janelaVisivel(zDoLivro) {
+    const distancia = camera.position.z - zDoLivro;
+    const altura = 2 * distancia * Math.tan(camera.fov * Math.PI / 360);
+    return { altura, largura: altura * (window.innerWidth / window.innerHeight) };
+  }
+
+  // o tamanho do livro FECHADO. Numa tela estreita ele não cabia e saía cortado nas laterais —
+  // aqui ele encolhe só o necessário pra caber. Numa tela larga o IDLE_SCALE de sempre já cabe,
+  // então nada muda. A folga é maior que na leitura porque a capa fechada gira com o arrasto.
+  function escalaParada() {
+    const v = janelaVisivel(IDLE_Z);
+    return Math.min(IDLE_SCALE, 0.8 * Math.min(v.largura / W, v.altura / H));
+  }
+
+  // o tamanho que faz a página (ou a dupla inteira, na tela grande) caber na tela
+  function escalaDeLeitura() {
+    const v = janelaVisivel(READING_Z);
+    const larguraNecessaria = umaPaginaPorVez ? W : W * 2;
+    return FOLGA_DA_TELA * Math.min(v.largura / larguraNecessaria, v.altura / H) * zoomDeLeitura;
+  }
+
+  // onde o grupo precisa estar pra que a página escolhida caia no meio da tela. O centro é medido
+  // na geometria real do livro aberto (não num número chutado), como a abertura já fazia.
+  function centroDeLeitura(escala) {
+    bookGroup.updateMatrixWorld(true);
+    const caixa = new THREE.Box3().setFromObject(bookGroup);
+    const centroLocal = (caixa.getCenter(new THREE.Vector3()).x - bookGroup.position.x) / bookGroup.scale.x;
+    const meiaPagina = umaPaginaPorVez ? (ladoDaPagina === 'esquerda' ? -W / 2 : W / 2) : 0;
+    return -escala * (centroLocal + meiaPagina);
+  }
+
+  // duracao 0 = pula pro lugar na hora (usado no redimensionar e na pinça)
+  function enquadrarLeitura(duracao) {
+    const escala = escalaDeLeitura();
+    const alvoX = centroDeLeitura(escala) + arrastoX;
+    const alvoY = BASE_Y + arrastoY;
+    if (!duracao) {
+      bookGroup.position.x = alvoX;
+      bookGroup.position.y = alvoY;
+      bookGroup.scale.set(escala, escala, escala);
+      return;
+    }
+    const deX = bookGroup.position.x, deY = bookGroup.position.y, deEscala = bookGroup.scale.x;
+    tween(duracao, t => {
+      bookGroup.position.x = deX + (alvoX - deX) * t;
+      bookGroup.position.y = deY + (alvoY - deY) * t;
+      const s = deEscala + (escala - deEscala) * t;
+      bookGroup.scale.set(s, s, s);
+    });
+  }
+
+  // anda uma página: +1 pra frente, -1 pra trás. Só vira a folha quando já está na ponta da dupla
+  function andarPagina(direcao) {
+    if (animating || !reading || !umaPaginaPorVez) return;
+    const praFrente = direcao > 0;
+    zoomDeLeitura = 1; arrastoX = 0; arrastoY = 0; // trocar de página desfaz o zoom
+    const naPonta = praFrente ? ladoDaPagina === 'direita' : ladoDaPagina === 'esquerda';
+    if (!naPonta) {
+      ladoDaPagina = praFrente ? 'direita' : 'esquerda';
+      enquadrarLeitura(420);
+      return;
+    }
+    if (praFrente ? current >= total : current <= 0) return;
+    if (praFrente) goNext(); else goPrev(); // eles já escolhem a metade certa e reenquadram
+  }
+
+  // qual página está à vista agora, no modo de uma por vez: a da esquerda é o VERSO da folha
+  // anterior, a da direita é a FRENTE da folha atual — mesma convenção do resto do arquivo
+  function paginaAVista() {
+    const naEsquerda = ladoDaPagina === 'esquerda';
+    const pivot = leafPivots[naEsquerda ? current - 1 : current];
+    return pivot && { mesh: pivot.userData.mesh, face: naEsquerda ? 'back' : 'front' };
+  }
+
+  // ---- os gestos do celular: tocar na lateral vira, dois dedos dão zoom ----
+  // Um dedo continua fazendo o que sempre fez (arrastar as peças, tocar nos links); a lateral só
+  // conta como "virar" se o toque não virou arrasto, senão soltar uma peça perto da borda viraria
+  // a página sem querer.
+  const FAIXA_DA_LATERAL = 0.16; // que fatia da largura, de cada lado, vira a página
+  const dedos = new Map();
+  let pinca = 0, centroPinca = null, tocouEm = null;
+
+  // -1 = faixa da esquerda (volta), 1 = a da direita (avança), 0 = no meio, não vira nada.
+  // O teste de "não sei onde está" vem PRIMEIRO de propósito: mouseX começa em -1, e sem isto
+  // qualquer posição desconhecida caía no primeiro if e era lida como faixa esquerda — a página
+  // voltava mesmo com a peça segurada na direita.
+  function faixaDoToque(x) {
+    if (!(x >= 0)) return 0;
+    if (x < window.innerWidth * FAIXA_DA_LATERAL) return -1;
+    if (x > window.innerWidth * (1 - FAIXA_DA_LATERAL)) return 1;
+    return 0;
+  }
+  function medirDedos() {
+    const [a, b] = [...dedos.values()];
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, abertura: Math.hypot(a.x - b.x, a.y - b.y) };
+  }
+  container.addEventListener('pointerdown', e => {
+    if (!umaPaginaPorVez || !reading) return;
+    dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (dedos.size === 2) { const m = medirDedos(); pinca = m.abertura; centroPinca = m; tocouEm = null; }
+    else tocouEm = { x: e.clientX, y: e.clientY };
+  });
+  container.addEventListener('pointermove', e => {
+    if (!dedos.has(e.pointerId)) return;
+    dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (dedos.size !== 2) {
+      if (tocouEm && Math.hypot(e.clientX - tocouEm.x, e.clientY - tocouEm.y) > 12) tocouEm = null;
+      return;
+    }
+    const m = medirDedos();
+    if (pinca > 0 && m.abertura > 0) {
+      zoomDeLeitura = Math.max(1, Math.min(ZOOM_MAX, zoomDeLeitura * (m.abertura / pinca)));
+    }
+    if (centroPinca) { // arrastar os dois dedos juntos empurra a vista, pra ler o resto da página
+      const porPixel = 2 * (camera.position.z - READING_Z) * Math.tan(camera.fov * Math.PI / 360)
+        / Math.max(1, window.innerHeight);
+      arrastoX += (m.x - centroPinca.x) * porPixel;
+      arrastoY -= (m.y - centroPinca.y) * porPixel;
+    }
+    pinca = m.abertura; centroPinca = m;
+    enquadrarLeitura(0);
+  });
+  const soltarDedo = e => {
+    const tocou = tocouEm;
+    dedos.delete(e.pointerId);
+    if (dedos.size < 2) { pinca = 0; centroPinca = null; }
+    tocouEm = null;
+    if (!tocou || dedos.size > 0) return;
+    const lado = faixaDoToque(e.clientX);
+    if (lado) andarPagina(lado);
+  };
+  container.addEventListener('pointerup', soltarDedo);
+  container.addEventListener('pointercancel', e => { dedos.delete(e.pointerId); tocouEm = null; });
+
   // ---- sequência de abertura: vira de frente → zoom → capa abre → centraliza ----
   function playOpenSequence() {
     if (animating) return;
@@ -1172,20 +1356,16 @@ function initBook() {
         // fase 3 — centraliza de verdade (calculado pela geometria real do
         // livro já aberto, não por um número chutado) e aproxima/ajusta o
         // tamanho pro valor de leitura definido em READING_SCALE/READING_Z.
-        bookGroup.updateMatrixWorld(true);
-        const box = new THREE.Box3().setFromObject(bookGroup);
-        const centerX = box.getCenter(new THREE.Vector3()).x;
-
+        // o tamanho e o deslocamento saem da tela de agora: na larga entra a página dupla
+        // inteira, na estreita entra uma página só (ver escalaDeLeitura/centroDeLeitura)
+        const escalaFinal = escalaDeLeitura();
+        const targetX = centroDeLeitura(escalaFinal);
         const fromX = bookGroup.position.x, fromZ2 = bookGroup.position.z, fromScale2 = bookGroup.scale.x;
-        // centro local (relativo à origem do grupo, sem escala/posição) do miolo aberto
-        const localCenterX = (centerX - fromX) / fromScale2;
-        // posição final necessária para que esse centro caia em x=0 na escala final
-        const targetX = -READING_SCALE * localCenterX;
 
         tween(550, (t) => {
           bookGroup.position.x = fromX + (targetX - fromX) * t;
           bookGroup.position.z = fromZ2 + (READING_Z - fromZ2) * t;
-          const s = fromScale2 + (READING_SCALE - fromScale2) * t;
+          const s = fromScale2 + (escalaFinal - fromScale2) * t;
           bookGroup.scale.set(s, s, s);
         }, () => {
           reading = true;
@@ -1228,7 +1408,7 @@ function initBook() {
     tween(totalDuration, (t) => {
       bookGroup.position.x = fromX * (1 - t);
       bookGroup.position.z = fromZ + (IDLE_Z - fromZ) * t;
-      const s = fromScale + (IDLE_SCALE - fromScale) * t;
+      const s = fromScale + (escalaParada() - fromScale) * t;
       bookGroup.scale.set(s, s, s);
     }, () => {
       bookGroup.rotation.set(0, 0, 0);
@@ -1239,12 +1419,25 @@ function initBook() {
   }
   document.getElementById('closeBook').addEventListener('click', closeToInspect);
 
-  window.addEventListener('resize', () => {
+  function ajustarATela() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    // a tela pode ter virado de pé pra deitada (ou o navegador mudou de tamanho): o enquadramento
+    // é refeito, e com ele a decisão de mostrar a dupla inteira ou uma página só
+    const eraUmaSo = umaPaginaPorVez;
+    umaPaginaPorVez = window.innerWidth < LARGURA_DE_CELULAR;
+    if (eraUmaSo !== umaPaginaPorVez) { zoomDeLeitura = 1; arrastoX = 0; arrastoY = 0; }
+    if (reading && !animating) enquadrarLeitura(eraUmaSo === umaPaginaPorVez ? 0 : 420);
+    else if (!reading && !animating) bookGroup.scale.setScalar(escalaParada());
     if (reading) { updateCornerZones(); updateTocZones(); updateContactZones(); updateSectionZones(); }
-  });
+  }
+  window.addEventListener('resize', ajustarATela);
+  // Quando o initBook roda, a janela ainda pode não estar no tamanho final: fontes carregando, a
+  // barra de endereço do celular, o navegador assentando o layout. Sem refazer a conta aqui, a
+  // PROPORÇÃO DA CÂMERA ficava com o valor errado até o primeiro redimensionamento — e é ela que
+  // decide o quanto cabe na largura, então o livro saía cortado sem motivo aparente.
+  window.addEventListener('load', ajustarATela);
 
   // capas (frente/fundo) são "tábua" de couro — sem dobrinha de papel nelas
   const isCoverIndex = idx => idx === 0 || idx === total - 1;
