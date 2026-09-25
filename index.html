@@ -5,10 +5,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Portfólio — O Livro</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link
-    href="https://fonts.googleapis.com/css2?family=Jacquarda+Bastarda+9&family=Pixelify+Sans:wght@400;500;600;700&family=Silkscreen:wght@400;700&display=swap"
-    rel="stylesheet">
+  <!-- As bibliotecas e as fontes moram em vendor/, não em CDN. O site é apresentado em rede de
+       escola, e rede de escola bloqueia ou estrangula CDN sem avisar: faltando o three.js não é
+       um detalhe que some, é a tela inteira em branco. Assim a única coisa de que ele depende é
+       conseguir abrir a própria página. -->
+  <link rel="stylesheet" href="vendor/fontes.css">
   <link rel="stylesheet" href="book.css">
 </head>
 
@@ -26,12 +27,12 @@
     </div>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="vendor/three.min.js"></script>
   <!-- decodifica GIF quadro a quadro à mão (via gifuct-js) em vez de depender do navegador
        "tocar" a animação sozinho — isso é o que dá controle de verdade (tocar 1x, congelar
        no fim), sem os problemas de timing/visibilidade de deixar o <img> nativo animar. -->
   <script type="module">
-    import { parseGIF, decompressFrames } from 'https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm';
+    import { parseGIF, decompressFrames } from './vendor/gifuct-js.js';
     window.GifuctJS = { parseGIF, decompressFrames };
   </script>
   <script src="content.js"></script>
@@ -40,7 +41,7 @@
        mora no próprio arquivo, com só a regra dele. Carregam antes de book.js, que é quem
        detecta as peças encostadas e pergunta aos jogos se aquilo vale prêmio. -->
   <script src="trofeu-icones.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="vendor/GLTFLoader.js"></script>
   <script src="vitrine-3d.js"></script>
   <script src="flechada-3d.js"></script>
   <script src="muralha-3d.js"></script>
