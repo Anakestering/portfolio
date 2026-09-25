@@ -21,6 +21,9 @@
 html,
 body {
   height: 100%;
+  /* a outra metade da rolagem do navegador no celular: sem isto, arrastar o dedo ainda dispara o
+     "puxar para atualizar" e o efeito elástico das bordas, mesmo com a página sem barra de rolagem */
+  overscroll-behavior: none;
 }
 
 body {
@@ -63,6 +66,17 @@ body::after {
   inset: 0;
   z-index: 2;
   cursor: grab;
+  /* sem isto, no celular o navegador entende o arrasto do dedo como rolagem DELE: a tela escorrega
+     pros lados enquanto se tenta arrastar uma peça, e no meio do gesto ele cancela os eventos de
+     ponteiro (o que fazia a virada de página parar de saber onde o dedo estava). Declarando "none",
+     quem cuida do toque aqui é a página — o zoom de pinça é o nosso, feito no book.js. */
+  touch-action: none;
+}
+
+/* o canvas do three.js é criado por código, então não passa por aqui na hora de nascer — a regra
+   do #scene3d já valeria por herança de comportamento, mas declarar de novo não deixa dúvida */
+#scene3d canvas {
+  touch-action: none;
 }
 
 #scene3d.dragging {
