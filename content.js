@@ -114,11 +114,11 @@ const leavesData = [
       // fica alternando entre esses prints em loop contínuo enquanto a página estiver aberta —
       // ver playSlideshowLoop em pixel-art.js / book.js.
       images: [
-        'assets/guardavidas-1-login.png',
-        'assets/guardavidas-2-postos.png',
-        'assets/guardavidas-3-registros.png',
-        'assets/guardavidas-4-relatorios.png',
-        'assets/guardavidas-5-posto1.png'
+        'assets/guardavidas-1-login.webp',
+        'assets/guardavidas-2-postos.webp',
+        'assets/guardavidas-3-registros.webp',
+        'assets/guardavidas-4-relatorios.webp',
+        'assets/guardavidas-5-posto1.webp'
       ]
     }
   },
@@ -132,11 +132,11 @@ const leavesData = [
       // fica alternando entre esses prints em loop contínuo enquanto a página estiver aberta —
       // ver playSlideshowLoop em pixel-art.js / book.js.
       images: [
-        'assets/biblioteca-1-login.png',
-        'assets/biblioteca-2-reserva.png',
-        'assets/biblioteca-3-reserva.png',
-        'assets/biblioteca-4-estatisticas.png',
-        'assets/biblioteca-6-relatorio.png'
+        'assets/biblioteca-1-login.webp',
+        'assets/biblioteca-2-reserva.webp',
+        'assets/biblioteca-3-reserva.webp',
+        'assets/biblioteca-4-estatisticas.webp',
+        'assets/biblioteca-6-relatorio.webp'
       ]
     },
     back: {

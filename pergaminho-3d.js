@@ -27,7 +27,7 @@ const Pergaminho3D = (function () {
     manchas: 1.55,      // força das manchas de idade no papel
     rasgado: 0.035,     // o quanto as beiradas laterais são irregulares, de papel rasgado
     // o desenho no meio do papel
-    imagem: 'assets/julius.png',
+    imagem: 'assets/julius.webp',
     imagemTamanho: 0.6, // que fatia da largura do papel ele ocupa
     imagemForca: 0.75,  // 0 = sumido no papel, 1 = tinta cheia
     // os varões
