@@ -109,7 +109,7 @@ const leavesData = [
       type: 'page', eyebrow: 'VIII', title: 'Guarda-Vidas',
       bullets: [
         'Gestão de postos e registros operacionais',
-        'React, Spring Boot, Java, MySQL'
+        '42 requisições viraram uma'
       ],
       // fica alternando entre esses prints em loop contínuo enquanto a página estiver aberta —
       // ver playSlideshowLoop em pixel-art.js / book.js.
@@ -126,8 +126,8 @@ const leavesData = [
     front: {
       type: 'page', eyebrow: 'IX', title: 'Biblioteca',
       bullets: [
-        'Reservas, aprovações e dashboard admin',
-        'Next.js, TypeScript, Spring Boot, MySQL'
+        'Reservas e aprovações',
+        'Dashboard de estatísticas'
       ],
       // fica alternando entre esses prints em loop contínuo enquanto a página estiver aberta —
       // ver playSlideshowLoop em pixel-art.js / book.js.
@@ -144,7 +144,7 @@ const leavesData = [
       bullets: [
         'O próprio portfólio como projeto experimental',
         'Interfaces 3D e novas formas de interação',
-        'Next.js, Three.js, TypeScript'
+        'Three.js e JavaScript puro'
       ]
     }
   },
